@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Life</title>
+<style>
+  :root{
+    --bg:#05060a;
+    --glass:rgba(16,18,26,.74);
+    --line:rgba(255,255,255,.08);
+    --fg:rgba(232,238,255,.88);
+    --mut:rgba(200,210,235,.46);
+    --acc:#5ef2d0;
+  }
+  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none;cursor:crosshair}
+  body.idle canvas{cursor:none}
+
+  #gear{position:fixed;top:14px;right:14px;width:40px;height:40px;border-radius:12px;
+    border:1px solid var(--line);background:rgba(255,255,255,.06);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--fg);
+    opacity:.45;cursor:pointer;display:grid;place-items:center;padding:0;z-index:3;
+    transition:opacity .4s}
+  #gear svg{transition:transform .5s}
+  #gear:hover,#gear.on{opacity:1}
+  #gear.on svg{transform:rotate(90deg)}
+  body.idle #gear:not(.on){opacity:.1}
+
+  #panel{position:fixed;top:64px;right:14px;width:276px;max-width:calc(100vw - 28px);
+    max-height:calc(100vh - 80px);overflow:auto;box-sizing:border-box;padding:14px;
+    background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+    border:1px solid var(--line);border-radius:16px;color:var(--fg);
+    font:12px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;z-index:3;
+    opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top right;pointer-events:none;
+    transition:opacity .2s,transform .2s}
+  #panel.open{opacity:1;transform:none;pointer-events:auto}
+
+  .btns{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px}
+  .btns button{height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);
+    color:var(--fg);cursor:pointer;display:grid;place-items:center;padding:0;transition:background .15s}
+  .btns button:hover{background:rgba(255,255,255,.13)}
+  .btns button:active{transform:scale(.95)}
+
+  .row{margin:0 0 12px}
+  .lab{display:flex;justify-content:space-between;color:var(--mut);margin-bottom:5px;font-size:11px;letter-spacing:.03em}
+  .lab b{font-weight:500;color:var(--fg);font-variant-numeric:tabular-nums}
+
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;background:transparent;height:18px;margin:0;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:rgba(255,255,255,.14)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--acc);margin-top:-5.5px;border:0}
+  input[type=range]::-moz-range-track{height:3px;border-radius:2px;background:rgba(255,255,255,.14)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--acc);border:0}
+
+  .sw{display:flex;gap:9px;margin-bottom:14px}
+  .sw button{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;
+    box-shadow:0 0 0 1px rgba(255,255,255,.12) inset}
+  .sw button.on{border-color:rgba(255,255,255,.9)}
+
+  .tog{display:flex;justify-content:space-between;align-items:center;color:var(--mut);font-size:11px;letter-spacing:.03em;margin-top:2px}
+  .tog input{accent-color:var(--acc);width:15px;height:15px;margin:0;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<button id="gear" aria-label="Settings">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</button>
+
+<div id="panel" role="dialog" aria-label="Settings">
+  <div class="btns">
+    <button id="bPlay" title="Pause / play (Space)"></button>
+    <button id="bStep" title="Step one generation (S)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+    </button>
+    <button id="bFleet" title="Launch a fleet (F)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+    </button>
+    <button id="bSeed" title="New soup (R)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>
+    </button>
+    <button id="bClear" title="Clear (C)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </button>
+  </div>
+
+  <div class="sw" id="sw"></div>
+
+  <div class="row"><div class="lab">Speed <b id="vSpeed"></b></div><input id="speed" type="range" min="0" max="100" step="1"></div>
+  <div class="row"><div class="lab">Spaceship rain <b id="vRain"></b></div><input id="rain" type="range" min="0" max="10" step="1"></div>
+  <div class="row"><div class="lab">Fleets <b id="vFleet"></b></div><input id="fleet" type="range" min="0" max="100" step="5"></div>
+  <div class="row"><div class="lab">Cell size <b id="vCell"></b></div><input id="cell" type="range" min="2" max="16" step="1"></div>
+  <div class="row"><div class="lab">Trails <b id="vTrail"></b></div><input id="trail" type="range" min="0" max="100" step="1"></div>
+  <div class="row"><div class="lab">Glow <b id="vGlow"></b></div><input id="glow" type="range" min="0" max="100" step="1"></div>
+  <div class="row"><div class="lab">Soup density <b id="vDens"></b></div><input id="dens" type="range" min="5" max="60" step="1"></div>
+  <label class="tog">Auto-revive when it goes stale <input id="revive" type="checkbox"></label>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Spaceships (all verified to translate) ---------- */
+// name: [rle, velocity (dx,dy) per period, weight]
+const SHIPS = {
+  glider:     ['bo$2bo$3o!',                                                  [ 1, 1], 5],
+  lwss:       ['bo2bo$o4b$o3bo$4o!',                                          [-1, 0], 4],
+  mwss:       ['3bo2b$bo3bo$o5b$o4bo$5o!',                                    [-1, 0], 3],
+  hwss:       ['3b2o2b$bo4bo$o6b$o5bo$6o!',                                   [-1, 0], 3],
+  copperhead: ['b2o2b2o$3b2o$3b2o$obo2bobo$o6bo2$o6bo$b2o2b2o$2b4o2$3b2o$3b2o!',[ 0,-1], 1.2],
+  loafer:     ['b2o2bob2o$o2bo2b2o$bobo$2bo$8bo$6b3o$5bo$6bo$7b2o!',          [-1, 0], 1],
+};
+function parseRLE(s){
+  const out=[]; let x=0,y=0,n='';
+  for(const ch of s){
+    if(ch>='0'&&ch<='9'){n+=ch;continue}
+    const k=n?+n:1; n='';
+    if(ch==='b') x+=k;
+    else if(ch==='o'){for(let i=0;i<k;i++) out.push([x++,y])}
+    else if(ch==='$'){y+=k;x=0}
+    else if(ch==='!') break;
+  }
+  return out;
+}
+const SHAPES = {};
+let WSUM = 0;
+for(const k in SHIPS){ SHAPES[k]=parseRLE(SHIPS[k][0]); WSUM+=SHIPS[k][2]; }
+function pickShip(){
+  let r=Math.random()*WSUM;
+  for(const k in SHIPS){ r-=SHIPS[k][2]; if(r<=0) return k; }
+  return 'glider';
+}
+
+/* ---------- Palettes ---------- */
+const BG=[5,6,10];
+const PALETTES = {
+  aurora:{age:['#f4fffc','#86f7dc','#33c2ff','#5f6bff','#5a3fc4'], trail:'#1f8fff', acc:'#5ef2d0'},
+  ember: {age:['#fff8e0','#ffd25a','#ff7a30','#e0305a','#8e2050'], trail:'#ff4a1c', acc:'#ffb340'},
+  neon:  {age:['#ffffff','#ff6ae0','#a066ff','#36e4ff','#2a64c8'], trail:'#d23cff', acc:'#ff6ae0'},
+  moss:  {age:['#f6ffe8','#bfff70','#45dd90','#22a08a','#1d6268'], trail:'#33d18a', acc:'#bfff70'},
+  mono:  {age:['#ffffff','#dde3f0','#9aa6c0','#66708a','#454c60'], trail:'#8a9ac0', acc:'#dde3f0'},
+};
+
+/* ---------- Settings ---------- */
+const DEFAULTS = {speed:56, rain:5, fleet:30, cell:4, trail:70, glow:55, dens:28, revive:true, palette:'aurora'};
+let S = {...DEFAULTS};
+try { Object.assign(S, JSON.parse(localStorage.getItem('life.settings')||'{}')); } catch(e){}
+function save(){ try{ localStorage.setItem('life.settings', JSON.stringify(S)); }catch(e){} }
+
+const RAIN_INTERVALS = [Infinity, 20, 12, 8, 5, 3, 2, 1.2, .7, .4, .2];
+const gensPerSec = v => Math.round(Math.exp(Math.log(1) + (Math.log(600)-Math.log(1))*v/100));
+
+/* ---------- Canvas & grid ---------- */
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d', {alpha:false});
+const off = document.createElement('canvas'), octx = off.getContext('2d');
+const glw = document.createElement('canvas'), gctx = glw.getContext('2d');
+
+let C=0, R=0, N=0, cs=4, ox=0, oy=0, dpr=1;
+let cur, nxt, age, trail, img, buf;
+let gen=0, pop=0;
+const decayLUT = new Uint8Array(256);
+const ageLUT = new Uint32Array(256), trailLUT = new Uint32Array(256);
+
+function hex(h){ return [1,3,5].map(i=>parseInt(h.slice(i,i+2),16)); }
+function pack(r,g,b){ return ((255<<24)|(b<<16)|(g<<8)|r)>>>0; }
+
+function buildLUTs(){
+  const p = PALETTES[S.palette] || PALETTES.aurora;
+  const st = p.age.map(hex), L = st.length-1;
+  for(let a=0;a<256;a++){
+    const t = Math.min(1, Math.log1p(a)/Math.log1p(180));
+    const pos = t*L, i = Math.min(L-1, Math.floor(pos)), f = pos-i;
+    const c = [0,1,2].map(j => Math.round(st[i][j] + (st[i+1][j]-st[i][j])*f));
+    ageLUT[a] = pack(c[0],c[1],c[2]);
+  }
+  const tc = hex(p.trail);
+  for(let v=0;v<256;v++){
+    const k = Math.pow(v/255, 1.5)*0.6;
+    trailLUT[v] = pack(...[0,1,2].map(j => Math.round(BG[j] + (tc[j]-BG[j])*k)));
+  }
+  trailLUT[0] = pack(...BG);
+  document.documentElement.style.setProperty('--acc', p.acc);
+}
+function buildDecay(){
+  const r = S.trail<=0 ? 0 : 0.55 + 0.43*(S.trail/100);
+  for(let v=0;v<256;v++) decayLUT[v] = Math.floor(v*r);
+}
+
+function layout(keep){
+  dpr = Math.min(window.devicePixelRatio||1, 2);
+  const W = Math.floor(innerWidth*dpr), H = Math.floor(innerHeight*dpr);
+  cv.width = W; cv.height = H;
+  cs = Math.max(1, Math.round(S.cell*dpr));
+  const nc = Math.max(8, Math.floor(W/cs)), nr = Math.max(8, Math.floor(H/cs));
+  ox = Math.floor((W - nc*cs)/2); oy = Math.floor((H - nr*cs)/2);
+
+  const oC=C, oR=R, oCur=cur, oAge=age, oTr=trail;
+  C=nc; R=nr; N=C*R;
+  cur=new Uint8Array(N); nxt=new Uint8Array(N); age=new Uint8Array(N); trail=new Uint8Array(N);
+  if(keep && oCur){
+    const dx=Math.floor((C-oC)/2), dy=Math.floor((R-oR)/2);
+    for(let y=0;y<oR;y++){ const ny=y+dy; if(ny<0||ny>=R) continue;
+      for(let x=0;x<oC;x++){ const nx=x+dx; if(nx<0||nx>=C) continue;
+        const o=y*oC+x, n=ny*C+nx; cur[n]=oCur[o]; age[n]=oAge[o]; trail[n]=oTr[o]; } }
+  }
+  off.width=C; off.height=R;
+  img = octx.createImageData(C,R); buf = new Uint32Array(img.data.buffer);
+  glw.width=Math.max(1,C>>1); glw.height=Math.max(1,R>>1);
+}
+
+/* ---------- Simulation ---------- */
+function step(){
+  const c=C, r=R, g=cur, n=nxt, A=age, T=trail, D=decayLUT;
+  let p=0;
+  for(let y=0;y<r;y++){
+    const ym=(y===0?r-1:y-1)*c, y0=y*c, yp=(y===r-1?0:y+1)*c;
+    for(let x=0;x<c;x++){
+      const xm=x===0?c-1:x-1, xp=x===c-1?0:x+1;
+      const s=g[ym+xm]+g[ym+x]+g[ym+xp]+g[y0+xm]+g[y0+xp]+g[yp+xm]+g[yp+x]+g[yp+xp];
+      const i=y0+x, al=g[i];
+      if(s===3||(s===2&&al)){ n[i]=1; p++; A[i] = al ? (A[i]<255?A[i]+1:255) : 0; }
+      else { n[i]=0; if(al) T[i]=255; else if(T[i]) T[i]=D[T[i]]; }
+    }
+  }
+  cur=n; nxt=g; gen++; pop=p;
+}
+
+const idx = (x,y) => ((((y%R)+R)%R)*C + (((x%C)+C)%C));
+function setCell(x,y){ const i=idx(x,y); if(!cur[i]){cur[i]=1; age[i]=0;} }
+
+function soup(x0,y0,w,h,d){
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=idx(x0+x,y0+y);
+    if(Math.random()<d){ cur[i]=1; age[i]=0; } else cur[i]=0;
+  }
+}
+function reseed(){
+  cur.fill(0); age.fill(0); trail.fill(0);
+  soup(0,0,C,R,S.dens/100);
+  popHist.length=0;
+}
+
+// symmetry: bit1 swap axes, bit2 flip x, bit4 flip y
+function orient(pts, vel, sym){
+  let P = pts.map(([x,y]) => sym&1 ? [y,x] : [x,y]);
+  let v = sym&1 ? [vel[1],vel[0]] : [vel[0],vel[1]];
+  if(sym&2){ const m=Math.max(...P.map(p=>p[0])); P=P.map(([x,y])=>[m-x,y]); v[0]=-v[0]; }
+  if(sym&4){ const m=Math.max(...P.map(p=>p[1])); P=P.map(([x,y])=>[x,m-y]); v[1]=-v[1]; }
+  return {P, v};
+}
+function stamp(P, cx, cy, margin){
+  let w=0,h=0; for(const [x,y] of P){ if(x>w)w=x; if(y>h)h=y; }
+  const x0=cx-(w>>1), y0=cy-(h>>1);
+  for(let y=-margin;y<=h+margin;y++) for(let x=-margin;x<=w+margin;x++) cur[idx(x0+x,y0+y)]=0;
+  for(const [x,y] of P){ const i=idx(x0+x,y0+y); cur[i]=1; age[i]=0; }
+}
+function launch(name, cx, cy, fleet){
+  name = name || pickShip();
+  const sym = (Math.random()*8)|0;
+  const {P, v} = orient(SHAPES[name], SHIPS[name][1], sym);
+  if(!fleet){ stamp(P,cx,cy,2); return; }
+  // echelon / V formation, perpendicular to heading
+  let w=0,h=0; for(const [x,y] of P){ if(x>w)w=x; if(y>h)h=y; }
+  const gap = Math.max(w,h) + 5;
+  const px=-v[1], py=v[0];
+  const count = 3 + ((Math.random()*4)|0);
+  const vee = Math.random()<.5;
+  for(let k=0;k<count;k++){
+    const j = vee ? (k%2 ? (k+1)/2 : -k/2) : k - (count-1)/2;
+    const back = vee ? Math.abs(j)*gap*0.6 : j*gap*0.5;
+    stamp(P, Math.round(cx + px*j*gap - v[0]*back), Math.round(cy + py*j*gap - v[1]*back), 2);
+  }
+}
+function launchRandom(forceFleet){
+  const fleet = forceFleet || Math.random()*100 < S.fleet;
+  launch(null, (Math.random()*C)|0, (Math.random()*R)|0, fleet);
+}
+
+// stale detection → drop a fresh patch of soup
+const popHist=[];
+function checkStale(){
+  popHist.push(pop); if(popHist.length>14) popHist.shift();
+  if(!S.revive || popHist.length<14) return;
+  let mn=Infinity,mx=0,sum=0; for(const p of popHist){ if(p<mn)mn=p; if(p>mx)mx=p; sum+=p; }
+  const mean=sum/popHist.length;
+  if(pop < N*0.004 || (mx-mn) < Math.max(6, mean*0.025)){
+    const s = Math.max(16, Math.round(Math.min(C,R)*(0.18+Math.random()*0.17)));
+    soup((Math.random()*C)|0, (Math.random()*R)|0, s, s, S.dens/100);
+    popHist.length=0;
+  }
+}
+
+/* ---------- Render ---------- */
+function render(){
+  const g=cur, A=age, T=trail, b=buf, AL=ageLUT, TL=trailLUT;
+  for(let i=0;i<N;i++) b[i] = g[i] ? AL[A[i]] : TL[T[i]];
+  octx.putImageData(img,0,0);
+
+  ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; ctx.filter='none';
+  ctx.fillStyle='#05060a'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(off, ox, oy, C*cs, R*cs);
+
+  if(S.glow>0){
+    gctx.clearRect(0,0,glw.width,glw.height);
+    gctx.imageSmoothingEnabled=true;
+    gctx.filter='blur(1.2px)';
+    gctx.drawImage(off,0,0,glw.width,glw.height);
+    gctx.filter='none';
+    ctx.globalCompositeOperation='lighter';
+    ctx.imageSmoothingEnabled=true;
+    ctx.globalAlpha=S.glow/100*0.9;
+    ctx.drawImage(glw, ox, oy, C*cs, R*cs);
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+  }
+}
+
+/* ---------- Loop ---------- */
+let running=true, acc=0, rainAcc=0, last=performance.now(), staleGen=0;
+function frame(t){
+  const dt=Math.min(0.1,(t-last)/1000); last=t;
+  if(running){
+    acc += dt*gensPerSec(S.speed);
+    let k = Math.min(acc|0, 24); acc -= k; if(acc>24) acc=0;
+    while(k--){ step(); if(gen-staleGen>=32){ staleGen=gen; checkStale(); } }
+    rainAcc += dt;
+    const iv = RAIN_INTERVALS[S.rain];
+    if(rainAcc >= iv){ rainAcc = 0; launchRandom(); }
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Input ---------- */
+const gear=document.getElementById('gear'), panel=document.getElementById('panel');
+function togglePanel(open){
+  open = open ?? !panel.classList.contains('open');
+  panel.classList.toggle('open', open); gear.classList.toggle('on', open);
+  if(open) document.body.classList.remove('idle');
+}
+gear.addEventListener('click', ()=>togglePanel());
+
+function toCell(e){ return [Math.floor((e.clientX*dpr-ox)/cs), Math.floor((e.clientY*dpr-oy)/cs)]; }
+let down=null;
+cv.addEventListener('pointerdown', e=>{
+  if(panel.classList.contains('open')){ togglePanel(false); return; }
+  const [x,y]=toCell(e);
+  down={sx:e.clientX, sy:e.clientY, x, y, moved:false, shift:e.shiftKey};
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e=>{
+  if(!down) return;
+  if(!down.moved && Math.hypot(e.clientX-down.sx, e.clientY-down.sy) < 6) return;
+  if(!down.moved){ down.moved=true; setCell(down.x,down.y); }
+  const [x,y]=toCell(e);
+  // Bresenham from last cell to this one
+  let x0=down.x, y0=down.y; const dx=Math.abs(x-x0), dy=-Math.abs(y-y0), sx=x0<x?1:-1, sy=y0<y?1:-1; let err=dx+dy;
+  for(;;){ setCell(x0,y0); if(cs<=3*dpr){ setCell(x0+1,y0); setCell(x0,y0+1); }
+    if(x0===x&&y0===y) break; const e2=2*err; if(e2>=dy){err+=dy;x0+=sx;} if(e2<=dx){err+=dx;y0+=sy;} }
+  down.x=x; down.y=y;
+});
+cv.addEventListener('pointerup', ()=>{
+  if(down && !down.moved) launch(null, down.x, down.y, down.shift);
+  down=null;
+});
+cv.addEventListener('pointercancel', ()=>{ down=null; });
+
+addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT' && e.key!==' ' && e.key!=='Escape') return;
+  switch(e.key){
+    case ' ': e.preventDefault(); setRunning(!running); break;
+    case 's': case 'S': if(running) setRunning(false); step(); break;
+    case 'r': case 'R': reseed(); break;
+    case 'c': case 'C': cur.fill(0); age.fill(0); break;
+    case 'f': case 'F': launchRandom(true); break;
+    case 'Escape': togglePanel(false); break;
+    case '+': case '=': S.speed=Math.min(100,S.speed+5); syncUI(); save(); break;
+    case '-': case '_': S.speed=Math.max(0,S.speed-5); syncUI(); save(); break;
+  }
+});
+
+// idle: hide cursor & fade gear
+let idleT;
+function wake(){
+  document.body.classList.remove('idle'); clearTimeout(idleT);
+  idleT=setTimeout(()=>{ if(!panel.classList.contains('open')) document.body.classList.add('idle'); }, 2500);
+}
+addEventListener('pointermove', wake); addEventListener('pointerdown', wake); wake();
+
+let rT; addEventListener('resize', ()=>{ clearTimeout(rT); rT=setTimeout(()=>layout(true), 120); });
+
+/* ---------- Settings UI ---------- */
+const $=id=>document.getElementById(id);
+const ICON_PAUSE='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+const ICON_PLAY ='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
+function setRunning(v){ running=v; $('bPlay').innerHTML = running?ICON_PAUSE:ICON_PLAY; }
+
+const sw=$('sw');
+for(const k in PALETTES){
+  const b=document.createElement('button');
+  const a=PALETTES[k].age;
+  b.style.background=`radial-gradient(circle at 35% 35%, ${a[0]}, ${a[1]} 35%, ${a[2]} 65%, ${a[3]})`;
+  b.title=k; b.dataset.k=k;
+  b.onclick=()=>{ S.palette=k; buildLUTs(); syncUI(); save(); };
+  sw.appendChild(b);
+}
+
+function syncUI(){
+  $('speed').value=S.speed; $('vSpeed').textContent=gensPerSec(S.speed)+' gen/s';
+  $('rain').value=S.rain; $('vRain').textContent= S.rain===0 ? 'off' : 'every '+RAIN_INTERVALS[S.rain]+'s';
+  $('fleet').value=S.fleet; $('vFleet').textContent=S.fleet+'%';
+  $('cell').value=S.cell; $('vCell').textContent=S.cell+'px';
+  $('trail').value=S.trail; $('vTrail').textContent=S.trail===0?'off':S.trail+'%';
+  $('glow').value=S.glow; $('vGlow').textContent=S.glow===0?'off':S.glow+'%';
+  $('dens').value=S.dens; $('vDens').textContent=S.dens+'%';
+  $('revive').checked=S.revive;
+  for(const b of sw.children) b.classList.toggle('on', b.dataset.k===S.palette);
+}
+function bind(id, key, after){
+  $(id).addEventListener('input', e=>{ S[key]=+e.target.value; after&&after(); syncUI(); save(); });
+}
+bind('speed','speed');
+bind('rain','rain', ()=>{ rainAcc=0; });
+bind('fleet','fleet');
+bind('cell','cell', ()=>layout(true));
+bind('trail','trail', buildDecay);
+bind('glow','glow');
+bind('dens','dens');
+$('revive').addEventListener('change', e=>{ S.revive=e.target.checked; save(); });
+
+$('bPlay').onclick = ()=>setRunning(!running);
+$('bStep').onclick = ()=>{ if(running) setRunning(false); step(); };
+$('bFleet').onclick= ()=>launchRandom(true);
+$('bSeed').onclick = ()=>reseed();
+$('bClear').onclick= ()=>{ cur.fill(0); age.fill(0); };
+
+/* ---------- Go ---------- */
+buildLUTs(); buildDecay(); layout(false); reseed();
+for(let i=0;i<4;i++) launchRandom(i<2);
+setRunning(true); syncUI();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
